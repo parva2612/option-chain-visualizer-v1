@@ -1,2 +1,2 @@
 # option-chain-visualizer-v1
-A Streamlit-based tool to format and visualize historical options data in an option chain layout, with built-in classes to render it locally.
+This project helps format and visualize historical options data in a traditional option chain format using Streamlit. It includes utilities to preprocess raw options data into the desired structure, along with modular classes that enable local visualization and interaction. Ideal for backtesting, analysis, or educational purposes, this tool simplifies the exploration of historical derivatives markets.
