@@ -1,0 +1,4 @@
+# Root-level config
+data_path: ./data        # folder for Parquet/CSV files
+default_expiry: ""       # optional, can set default expiry
+log_level: INFO          # optional, future logging setting
