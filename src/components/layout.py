@@ -37,7 +37,12 @@ def create_layout():
 
             html.Div(id="datetime-suggestion", style={"color": "gray", "margin-bottom": "5px"}),
             html.Div(id="current-datetime-display", style={"margin-bottom": "10px", "fontWeight": "bold"}),
-            html.Div(id="spot-display", style={"margin-top": "10px", "fontWeight": "bold"}),]
+            html.Div(id="spot-display", style={"margin-top": "10px", "fontWeight": "bold"}),
+            
+            html.Button("⏪ -1 min", id="minus-1min-btn", n_clicks=0, style={"margin-right": "10px"}),
+            html.Button("+1 min ⏩", id="plus-1min-btn", n_clicks=0),
+            
+            ]
 
         ),
         

@@ -1,15 +1,18 @@
-from dash import Input, Output, html, dcc
+from dash import Input, Output, html, dcc, State, ctx
 from .data_loader import load_option_chain
 from .utils import get_chain_for_datetime, get_spot_and_atm, make_chain_table
 import os, glob
 from src.config_loader import DATA_PATH
+import pandas as pd
+from datetime import timedelta
 
 loaded_data = {}
 previous_outputs = {
     "data": [],
     "suggestion": "",
     "current_datetime": "",
-    "spot_text": ""
+    "spot_text": "",
+    "current_dt": ""
 }
 
 
@@ -20,12 +23,20 @@ def register_callbacks(app):
         #  Output("option-chain-table", "style_data_conditional"),
          Output("datetime-suggestion", "children"),
          Output("current-datetime-display", "children"),
-         Output("spot-display", "children")],
+         Output("spot-display", "children"),
+         Output("datetime-input", "value"),],
+
         [Input("expiry-dropdown", "value"),
-         Input("datetime-input", "value")]
+         Input("datetime-input", "value"),
+         Input("minus-1min-btn", "n_clicks"),
+        Input("plus-1min-btn", "n_clicks")],
+        # State("datetime-input", "value")
     )
-    def update_table(selected_expiry, selected_datetime):
+    def update_table(selected_expiry, selected_datetime, minus_clicks, plus_clicks):
         global previous_outputs
+        trigger = ctx.triggered_id
+        # print(trigger)
+        
         if not selected_expiry:
             # fallback empty outputs
             return (
@@ -39,16 +50,32 @@ def register_callbacks(app):
         if selected_expiry not in loaded_data:
             file_path = os.path.join(DATA_PATH, f"{selected_expiry}.parquet")
             df, option_data, _ = load_option_chain(file_path)
-            # print(f"DF = {df}")
-            # print(f"OPTION CHAIN DATA = {option_data}")
             loaded_data[selected_expiry] = (df, option_data)
         else:
             df, option_data = loaded_data[selected_expiry]
 
         # fallback datetime
+        # print(f"selected datetime = {selected_datetime}")
         if not selected_datetime:
             selected_datetime = df.index[0]
+        else:
+            # print(trigger)
+            try:
+                # print(selected_datetime)
+                selected_datetime = pd.to_datetime(selected_datetime)
+                if trigger == "minus-1min-btn":
+                    selected_datetime -= timedelta(minutes=1)
+                elif trigger == "plus-1min-btn":
+                    selected_datetime += timedelta(minutes=1)
+                
+                selected_datetime = selected_datetime.strftime("%Y-%m-%d %H:%M:%S")
+            except:
+                selected_datetime = df.index[0]
+        
 
+        if not selected_datetime:
+            selected_datetime = df.index[0]
+        
         option_chain_df, actual_datetime = get_chain_for_datetime(df, option_data, selected_datetime)
         if option_chain_df is None:
             return (
@@ -119,14 +146,16 @@ def register_callbacks(app):
             "data": rows,
             "suggestion": suggestion,
             "current_datetime": current_dt_text,
-            "spot_text": spot_text
+            "spot_text": spot_text,
+            "current_dt": str(actual_datetime)
         }
 
         return (
             previous_outputs["data"],
             previous_outputs["suggestion"],
             previous_outputs["current_datetime"],
-            previous_outputs["spot_text"]
+            previous_outputs["spot_text"],
+            previous_outputs["current_dt"]
         )
 
     def populate_expiries(_):
