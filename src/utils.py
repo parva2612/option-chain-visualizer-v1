@@ -1,6 +1,8 @@
 import pandas as pd
+from datetime import datetime
 
 def get_chain_for_datetime(df, option_data, selected_datetime):
+    print(f"{datetime.now()}: into start of src/utils -> get_chain_for_datetime")
     selected_datetime = pd.to_datetime(selected_datetime)
     if selected_datetime not in df.index:
         nearest_idx = df.index.get_indexer([selected_datetime], method="nearest")[0]
@@ -30,11 +32,14 @@ def get_chain_for_datetime(df, option_data, selected_datetime):
     return pd.DataFrame(option_chain_rows), selected_datetime
 
 def get_spot_and_atm(df, selected_datetime):
+    print(f"{datetime.now()}: into start of src/utils -> get_spot_and_atm")
     spot_price = df.loc[selected_datetime, 'SPOT']
     atm_strike = round(spot_price / 50) * 50
     return spot_price, atm_strike
 
 def make_chain_table(option_chain_df, atm_strike=None):
+    print(f"{datetime.now()}: into start of src/utils -> make_chain_table")
+
     calls = option_chain_df[option_chain_df.optionType == "CE"]\
         .set_index("strike")[["close"]].rename(columns={"close": "CE"})
     puts = option_chain_df[option_chain_df.optionType == "PE"]\
