@@ -12,8 +12,8 @@ def create_layout():
     return html.Div([
         html.Div(
             style={
-                "width": "100%",
-                "maxHeight": "40vh",       # fixed height
+                "width": "98%",
+                "maxHeight": "38vh",       # fixed height
                 "overflowY": "auto",       # vertical scroll if needed
                 "border": "1px solid black",
                 "padding": "10px",
@@ -45,11 +45,11 @@ def create_layout():
         # --- HTML Table appended here ---
         html.Div(
             style={
-                "width": "100%",
+                "width": "98%",
                 "maxHeight": "59vh",       # fixed height
                 "overflowY": "auto",       # vertical scroll if needed
                 "border": "1px solid black",
-                # "padding": "10px",
+                "padding": "10px",
             },
             children=[
                 html.Table([
