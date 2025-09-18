@@ -13,6 +13,7 @@ def create_layout():
 
         dcc.Store(id="checklist-ids-store", data=[]),
         dcc.Store(id="previous-outputs-store", storage_type="memory"),
+        dcc.Store(id="buy-sell-state-store", storage_type="memory"),
 
         html.Div(
             style={

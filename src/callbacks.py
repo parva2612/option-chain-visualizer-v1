@@ -1,4 +1,4 @@
-from dash import Input, Output, html, dcc, State, ctx, MATCH
+from dash import Input, Output, html, dcc, State, ctx, MATCH, ALL
 import dash
 from .data_loader import load_option_chain
 from .utils import get_chain_for_datetime, get_spot_and_atm, make_chain_table
@@ -103,7 +103,35 @@ def register_callbacks(app):
             return [], sell_value  # clear BUY
         return buy_value, sell_value
     
+    
+    @app.callback(
+        Output("buy-sell-state-store", "data"),
+        Input({"type": "checklist-buy-ce", "strike": ALL}, "value"),
+        Input({"type": "checklist-sell-ce", "strike": ALL}, "value"),
+        Input({"type": "checklist-buy-pe", "strike": ALL}, "value"),
+        Input({"type": "checklist-sell-pe", "strike": ALL}, "value"),
+        State("buy-sell-state-store", "data"),
+    )
+    def update_buy_sell_state(buy_ce_vals, sell_ce_vals, buy_pe_vals, sell_pe_vals, current_state):
+        # Initialize store if empty
+        if current_state is None:
+            current_state = {"ce": {"buy": [], "sell": []}, "pe": {"buy": [], "sell": []}}
 
+        # Collect selected strikes
+        ce_buy_strikes = [i["id"]["strike"] for i, val in zip(ctx.inputs_list[0], buy_ce_vals) if val]
+        ce_sell_strikes = [i["id"]["strike"] for i, val in zip(ctx.inputs_list[1], sell_ce_vals) if val]
+        pe_buy_strikes  = [i["id"]["strike"] for i, val in zip(ctx.inputs_list[2], buy_pe_vals) if val]
+        pe_sell_strikes = [i["id"]["strike"] for i, val in zip(ctx.inputs_list[3], sell_pe_vals) if val]
+
+        updated_state = {
+            "ce": {"buy": ce_buy_strikes, "sell": ce_sell_strikes},
+            "pe": {"buy": pe_buy_strikes, "sell": pe_sell_strikes},
+        }
+
+        # print(updated_state)
+
+        return updated_state
+    
     @app.callback(
         [
             Output("option-chain-table", "children"),
@@ -112,6 +140,8 @@ def register_callbacks(app):
             Output("spot-display", "children"),
             Output("datetime-input", "value"),
             Output("previous-outputs-store", "data"),
+            # Output("buy-sell-state-store", "data"),
+            
         ],
 
         [
@@ -119,9 +149,11 @@ def register_callbacks(app):
             Input("datetime-input", "value"),
             Input("minus-1min-btn", "n_clicks"),
             Input("plus-1min-btn", "n_clicks"),
+            Input("buy-sell-state-store", "data"),
         ],
 
         State("previous-outputs-store", "data"),
+        # State("buy-sell-state-store", "data"),
         
     )
     
@@ -132,7 +164,11 @@ def register_callbacks(app):
         
         selected_expiry, selected_datetime, minus_clicks, plus_clicks = args[:4]
 
+        buy_sell_state = args[-2]
         previous_outputs = args[-1]
+        print(buy_sell_state)
+        # print(args)
+        
         if previous_outputs is None:
             print("parva: previous_outputs is None")
             previous_outputs = {
@@ -158,7 +194,9 @@ def register_callbacks(app):
                 previous_outputs["current_datetime"],
                 previous_outputs["spot_text"],
                 output_datetime_str,
-                previous_outputs
+                previous_outputs,
+                # buy_sell_state
+
             )
 
         # load data if not cached
@@ -198,12 +236,14 @@ def register_callbacks(app):
         if option_chain_df is None:
             previous_outputs["current_dt"] = output_datetime_str
             return (
-            previous_outputs["data"],
-            previous_outputs["suggestion"],
-            previous_outputs["current_datetime"],
-            previous_outputs["spot_text"],
-            previous_outputs["current_dt"]
-        )
+                previous_outputs["data"],
+                previous_outputs["suggestion"],
+                previous_outputs["current_datetime"],
+                previous_outputs["spot_text"],
+                previous_outputs["current_dt"],
+                previous_outputs,
+                # buy_sell_state
+            )
 
         if trigger in ["minus-1min-btn", "plus-1min-btn"]:
             output_datetime_str = actual_datetime.strftime('%Y-%m-%d %H:%M:%S')
@@ -214,7 +254,6 @@ def register_callbacks(app):
         rows = []
         
         for item in chain_table.to_dict("records"):
-            # Default style for all cells
             row_style = {}
 
             # Conditional background for 'strike' column
@@ -229,7 +268,8 @@ def register_callbacks(app):
                         # id=f'checklist-sell-ce-{item["strike"]}',
                         id={"type": "checklist-sell-ce", "strike": item["strike"]},
                         options=[{"label": "S", "value": "selected"}],
-                        value=[],
+                        # value=[],
+                        value = (["selected"] if item["strike"] in buy_sell_state["ce"]["sell"] else []),
                         inline=True,
                         style={"margin": "0"}
                     ), style=row_style),
@@ -237,7 +277,8 @@ def register_callbacks(app):
                         # id=f'checklist-buy-ce-{item["strike"]}',
                         id={"type": "checklist-buy-ce", "strike": item["strike"]},
                         options=[{"label": "B", "value": "selected"}],
-                        value=[],
+                        # value=[],
+                        value = (["selected"] if item["strike"] in buy_sell_state["ce"]["buy"] else []),
                         inline=True,
                         style={"margin": "0"}
                     ), style=row_style),
@@ -248,7 +289,8 @@ def register_callbacks(app):
                         # id=f'checklist-buy-pe-{item["strike"]}',
                         id={"type": "checklist-buy-pe", "strike": item["strike"]},
                         options=[{"label": "B", "value": "selected"}],
-                        value=[],
+                        # value=[],
+                        value = (["selected"] if item["strike"] in buy_sell_state["pe"]["buy"] else []),
                         inline=True,
                         style={"margin": "0"}
                     ), style=row_style),
@@ -256,7 +298,8 @@ def register_callbacks(app):
                         # id=f'checklist-sell-pe-{item["strike"]}',
                         id={"type": "checklist-sell-pe", "strike": item["strike"]},
                         options=[{"label": "S", "value": "selected"}],
-                        value=[],
+                        # value=[],
+                        value = (["selected"] if item["strike"] in buy_sell_state["pe"]["sell"] else []),
                         inline=True,
                         style={"margin": "0"}
                     ), style=row_style),
@@ -285,7 +328,8 @@ def register_callbacks(app):
             previous_outputs["current_datetime"],
             previous_outputs["spot_text"],
             previous_outputs["current_dt"],
-            previous_outputs
+            previous_outputs,
+            # buy_sell_state
         )
 
     def populate_expiries(_):
