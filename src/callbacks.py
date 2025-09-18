@@ -2,10 +2,12 @@ from dash import Input, Output, html, dcc, State, ctx, MATCH, ALL
 import dash
 from .data_loader import load_option_chain
 from .utils import get_chain_for_datetime, get_spot_and_atm, make_chain_table
+from .payoff_functions import *
 import os, glob
 from src.config_loader import DATA_PATH
 import pandas as pd
 from datetime import timedelta
+import plotly.graph_objects as go
 
 loaded_data = {}
 previous_outputs = {
@@ -106,6 +108,7 @@ def register_callbacks(app):
     
     @app.callback(
         Output("buy-sell-state-store", "data"),
+        Output("buy-sell-state-payoff-format-store", "data"),
         Input({"type": "checklist-buy-ce", "strike": ALL}, "value"),
         Input({"type": "checklist-sell-ce", "strike": ALL}, "value"),
         Input({"type": "checklist-buy-pe", "strike": ALL}, "value"),
@@ -129,8 +132,23 @@ def register_callbacks(app):
         }
 
         # print(updated_state)
-
-        return updated_state
+        
+        position_details_dict = {
+        
+        }
+        for op_type, sides in updated_state.items():
+            for side, strikes in sides.items():
+                for strike in strikes:  # directly iterate list of strikes
+                    key = f"{strike}{op_type.upper()}"
+                    position_details_dict[key] = {
+                        "strike": strike,
+                        "option_type": op_type,
+                        "buy_sell": side,
+                        'price': None,
+                        'lots': 1,
+                    }
+        # print(payOffFormat)
+        return updated_state, position_details_dict
     
     @app.callback(
         [
@@ -140,7 +158,8 @@ def register_callbacks(app):
             Output("spot-display", "children"),
             Output("datetime-input", "value"),
             Output("previous-outputs-store", "data"),
-            # Output("buy-sell-state-store", "data"),
+            Output("positions-table-body", "children"),
+            Output("payoff-graph", "figure"),
             
         ],
 
@@ -150,24 +169,19 @@ def register_callbacks(app):
             Input("minus-1min-btn", "n_clicks"),
             Input("plus-1min-btn", "n_clicks"),
             Input("buy-sell-state-store", "data"),
+            Input("buy-sell-state-payoff-format-store", "data"),
         ],
 
         State("previous-outputs-store", "data"),
-        # State("buy-sell-state-store", "data"),
         
     )
     
     def update_table(*args):
-
-        # global previous_outputs
         # print(args)
-        
-        selected_expiry, selected_datetime, minus_clicks, plus_clicks = args[:4]
+        selected_expiry, selected_datetime, minus_clicks, plus_clicks, buy_sell_state, position_details_dict, previous_outputs = args[:7]
+        fig = go.Figure()
+        positions_rows = []
 
-        buy_sell_state = args[-2]
-        previous_outputs = args[-1]
-        print(buy_sell_state)
-        # print(args)
         
         if previous_outputs is None:
             print("parva: previous_outputs is None")
@@ -194,6 +208,7 @@ def register_callbacks(app):
                 previous_outputs["current_datetime"],
                 previous_outputs["spot_text"],
                 output_datetime_str,
+                positions_rows,
                 previous_outputs,
                 # buy_sell_state
 
@@ -242,6 +257,8 @@ def register_callbacks(app):
                 previous_outputs["spot_text"],
                 previous_outputs["current_dt"],
                 previous_outputs,
+                positions_rows,
+                fig
                 # buy_sell_state
             )
 
@@ -262,44 +279,57 @@ def register_callbacks(app):
             elif item["strike"] % 5 == 0:  # example: alternate styling
                 row_style = {"textAlign": "center","backgroundColor": "#f9f9f9"}
 
+            cache_status = {
+                'ce_sell': (["selected"] if item["strike"] in buy_sell_state["ce"]["sell"] else []),
+                'ce_buy': (["selected"] if item["strike"] in buy_sell_state["ce"]["buy"] else []),
+                'pe_sell': (["selected"] if item["strike"] in buy_sell_state["pe"]["sell"] else []),
+                'pe_buy': (["selected"] if item["strike"] in buy_sell_state["pe"]["buy"] else []),
+            }
+            
+            # if cache_status['ce_sell'] != []:
+            ce_inst = f"{item['strike']}CE"
+            pe_inst = f"{item['strike']}PE"
+            # print(ce_inst, pe_inst, position_details_dict.keys(), any(key.startswith(pe_inst) for key in position_details_dict.keys()))
+            if any(key.startswith(ce_inst) for key in position_details_dict.keys()) and not pd.isna(item["CE"]):
+                print(f"updated {ce_inst} price")
+                position_details_dict[ce_inst]["price"] = item["CE"]
+            if any(key.startswith(pe_inst) for key in position_details_dict.keys()) and not pd.isna(item["PE"]):
+                print(f"updated {pe_inst} price")
+                position_details_dict[pe_inst]["price"] = item["PE"]
+                
+                
             rows.append(
                 html.Tr([
                     html.Td(dcc.Checklist(
-                        # id=f'checklist-sell-ce-{item["strike"]}',
                         id={"type": "checklist-sell-ce", "strike": item["strike"]},
                         options=[{"label": "S", "value": "selected"}],
-                        # value=[],
-                        value = (["selected"] if item["strike"] in buy_sell_state["ce"]["sell"] else []),
+                        value = cache_status['ce_sell'],
                         inline=True,
                         style={"margin": "0"}
                     ), style=row_style),
                     html.Td(dcc.Checklist(
-                        # id=f'checklist-buy-ce-{item["strike"]}',
                         id={"type": "checklist-buy-ce", "strike": item["strike"]},
                         options=[{"label": "B", "value": "selected"}],
-                        # value=[],
-                        value = (["selected"] if item["strike"] in buy_sell_state["ce"]["buy"] else []),
+                        value = cache_status['ce_buy'],
                         inline=True,
                         style={"margin": "0"}
                     ), style=row_style),
+
                     html.Td(item["CE"], style=row_style),
                     html.Td(item["strike"], style=row_style),
                     html.Td(item["PE"], style=row_style),
+
                     html.Td(dcc.Checklist(
-                        # id=f'checklist-buy-pe-{item["strike"]}',
                         id={"type": "checklist-buy-pe", "strike": item["strike"]},
                         options=[{"label": "B", "value": "selected"}],
-                        # value=[],
-                        value = (["selected"] if item["strike"] in buy_sell_state["pe"]["buy"] else []),
+                        value = cache_status['pe_buy'],
                         inline=True,
                         style={"margin": "0"}
                     ), style=row_style),
                     html.Td(dcc.Checklist(
-                        # id=f'checklist-sell-pe-{item["strike"]}',
                         id={"type": "checklist-sell-pe", "strike": item["strike"]},
                         options=[{"label": "S", "value": "selected"}],
-                        # value=[],
-                        value = (["selected"] if item["strike"] in buy_sell_state["pe"]["sell"] else []),
+                        value = cache_status['pe_sell'],
                         inline=True,
                         style={"margin": "0"}
                     ), style=row_style),
@@ -320,8 +350,29 @@ def register_callbacks(app):
             "spot_text": spot_text,
             "current_dt": output_datetime_str
         }
+
+        """
+            UPDATE PAYOFF FIGURE
+        """
+        
+        if len(position_details_dict) != 0:
+            fig = create_payoff_fig(spot_price, position_details_dict)
+            for key, position_data in position_details_dict.items():
+                print(position_data)
+                positions_rows.append(
+                    html.Tr([
+                        html.Td(position_data['buy_sell'].capitalize(), style={"textAlign": "center"}),  # Buy/Sell
+                        html.Td(selected_expiry, style={"textAlign": "center"}),  # placeholder for expiry if needed
+                        html.Td(position_data['strike'], style={"textAlign": "center"}),  # strike
+                        html.Td(position_data['option_type'].upper(), style={"textAlign": "center"}),  # CE/PE
+                        html.Td(position_data['lots'], style={"textAlign": "center"}),  # lots (example: 1 lot)
+                        html.Td(position_data['price'], style={"textAlign": "center"}),  # lots (example: 1 lot)
+                    ])
+                )
+            
         # print()
         # print(f"====================>\n\n{previous_outputs}\n<====================\n")
+        # print(f"===> PAYOFF DICT {create_plot_dict_2(spot_price, position_details_dict)} PAYOFF DICT <===")
         return (
             previous_outputs["data"],
             previous_outputs["suggestion"],
@@ -329,6 +380,8 @@ def register_callbacks(app):
             previous_outputs["spot_text"],
             previous_outputs["current_dt"],
             previous_outputs,
+            positions_rows,
+            fig
             # buy_sell_state
         )
 

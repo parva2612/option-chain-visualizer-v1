@@ -14,6 +14,7 @@ def create_layout():
         dcc.Store(id="checklist-ids-store", data=[]),
         dcc.Store(id="previous-outputs-store", storage_type="memory"),
         dcc.Store(id="buy-sell-state-store", storage_type="memory"),
+        dcc.Store(id="buy-sell-state-payoff-format-store", storage_type="memory"),
 
         html.Div(
             style={
@@ -25,27 +26,46 @@ def create_layout():
             },
             children=[
             html.H2("Option Chain Dashboard"),
+            html.Div([    
+                    html.Div([
+                        html.Div([
+                            dcc.Dropdown(
+                                id="expiry-dropdown",
+                                options=[{"label": e, "value": e} for e in expiries],
+                                value=expiries[0] if expiries else None,
+                                style={"width": "200px"}
+                            )
+                        ], style={"margin-right": "20px"}),
 
-            dcc.Dropdown(
-                id="expiry-dropdown",
-                options=[{"label": e, "value": e} for e in expiries],
-                value=expiries[0] if expiries else None,
-                style={"width": "300px"}
-            ),
+                        # Datetime input + suggestion
+                        html.Div([
+                            dcc.Input(
+                                id="datetime-input",
+                                type="text",
+                                placeholder="YYYY-MM-DD HH:MM:SS",
+                                style={"width": "220px"}
+                            ),
+                            html.Div(
+                                id="datetime-suggestion",
+                                style={"color": "gray", "fontSize": "12px", "margin-top": "2px"}
+                            ),
+                        ], style={"margin-right": "20px"}),
 
-            dcc.Input(
-                id="datetime-input",
-                type="text",
-                placeholder="YYYY-MM-DD HH:MM:SS",
-                style={"width": "300px", "margin-top": "10px"}
-            ),
+                        # Minus and plus buttons
+                        html.Div([
+                            html.Button("⏪ -1 min", id="minus-1min-btn", n_clicks=0, style={"margin-right": "5px"}),
+                            html.Button("+1 min ⏩", id="plus-1min-btn", n_clicks=0)
+                        ])
+                    ], style={"display": "flex", "alignItems": "flex-start", "margin-bottom": "10px"}),
 
-            html.Div(id="datetime-suggestion", style={"color": "gray", "margin-bottom": "5px"}),
-            html.Div(id="current-datetime-display", style={"margin-bottom": "10px", "fontWeight": "bold"}),
-            html.Div(id="spot-display", style={"margin-top": "10px", "fontWeight": "bold"}),
+                    
+                    html.Div([
+                        html.Div(id="spot-display", style={"margin-right": "20px", "fontWeight": "bold"}),
+                        html.Div(id="current-datetime-display", style={"fontWeight": "bold"})
+                    ], style={"display": "flex", "alignItems": "center", "margin-bottom": "10px"})
 
-            html.Button("⏪ -1 min", id="minus-1min-btn", n_clicks=0, style={"margin-right": "10px"}),
-            html.Button("+1 min ⏩", id="plus-1min-btn", n_clicks=0),
+                ])
+
             
             ]
 
@@ -81,35 +101,74 @@ def create_layout():
                     "tableLayout": "fixed"
                 })
             ]
+        ),
+
+        ################### POSITIONS DETAILS ###################
+        html.Div(
+            style={
+                "display": "flex",
+                "width": "98%",
+                "marginTop": "10px",
+                "gap": "10px"  # spacing between columns
+            },
+            children=[
+                # Left column: open positions
+                html.Div(
+                    style={
+                        "width": "48%",           # take about half width
+                        "maxHeight": "40vh",      # fixed height
+                        "overflowY": "auto",      # scroll if content exceeds height
+                        "border": "1px solid black",
+                        "padding": "10px"
+                    },
+                    children=[
+                        html.H4("Open Positions"),
+                        html.Table(
+                            id="positions-table",
+                            style={"width": "100%", "borderCollapse": "collapse"},
+                            children=[
+                                html.Thead([
+                                    html.Tr([
+                                        html.Th("Buy/Sell", style={"textAlign": "center"}),
+                                        html.Th("Expiry", style={"textAlign": "center"}),
+                                        html.Th("Strike", style={"textAlign": "center"}),
+                                        html.Th("Type", style={"textAlign": "center"}),
+                                        html.Th("Lots", style={"textAlign": "center"}),
+                                        html.Th("Price", style={"textAlign": "center"}),
+                                    ])
+                                ]),
+                                html.Tbody(id="positions-table-body")
+                            ]
+                        )
+                    ]
+                ),
+
+                # Right column: payoff chart
+                html.Div(
+                    style={
+                        "width": "50vw",
+                        "height": "40vh",
+                        "border": "1px solid black",
+                        "padding": "5px"
+                    },
+                    children=[
+                        dcc.Graph(id="payoff-graph")
+                    ]
+                )
+            ]
         )
+
+        # # --- Payoff Chart ---
         # html.Div(
-        #     # style={
-        #     #     "width": "100%",
-        #     #     "maxHeight": "400px",       # fixed height
-        #     #     "overflowY": "auto",       # vertical scroll if needed
-        #     #     "border": "1px solid black",
-        #     # },
-        #     # childrean 
-        #     html.Table([
-        #         html.Thead([
-        #             html.Tr([
-        #                 html.Th("SELL CE"),
-        #                 html.Th("BUY CE"),
-        #                 html.Th("CE"),
-        #                 html.Th("Strike"),
-        #                 html.Th("PE"),
-        #                 html.Th("BUY PE"),
-        #                 html.Th("SELL PE"),
-        #             ])
-        #         ]),
-        #         # Table Body
-        #         html.Tbody(id="option-chain-table")
-                
-        #     ], style={
-        #         "width": "100%",
+        #     style={
+        #         "width": "50vw",
+        #         "height": "40vh",          # dedicated height for graph
         #         "border": "1px solid black",
-        #         "borderCollapse": "collapse",
-        #         "tableLayout": "fixed"  # ✅ fixed layout for proper column alignment
-        #     })
+        #         "padding": "1px",
+        #         "marginTop": "1px",
+        #     },
+        #     children=[
+        #         dcc.Graph(id="payoff-graph")
+        #     ]
         # )
     ])
