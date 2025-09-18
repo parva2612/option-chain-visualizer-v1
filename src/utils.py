@@ -3,12 +3,14 @@ from datetime import datetime
 
 def get_chain_for_datetime(df, option_data, selected_datetime):
     print(f"{datetime.now()}: into start of src/utils -> get_chain_for_datetime")
+
     try:
+        # print(selected_datetime)
         selected_datetime = pd.to_datetime(selected_datetime)
     except Exception as e:
         print(f"[{datetime.now()}]: [PARVA]: Error while converting selected_datetime to datetime object.")
         return None, None
-    
+
     if selected_datetime not in df.index:
         nearest_idx = df.index.get_indexer([selected_datetime], method="nearest")[0]
         selected_datetime = df.index[nearest_idx]
