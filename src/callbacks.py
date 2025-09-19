@@ -8,6 +8,7 @@ from src.config_loader import DATA_PATH
 import pandas as pd
 from datetime import timedelta
 import plotly.graph_objects as go
+from dash_bootstrap_templates import ThemeSwitchAIO
 
 loaded_data = {}
 previous_outputs = {
@@ -160,6 +161,8 @@ def register_callbacks(app):
             Output("previous-outputs-store", "data"),
             Output("positions-table-body", "children"),
             Output("payoff-graph", "figure"),
+            Output("option-chain-table", "className"),
+            # Output("payoff-graph", "figure"),
             
         ],
 
@@ -170,6 +173,7 @@ def register_callbacks(app):
             Input("plus-1min-btn", "n_clicks"),
             Input("buy-sell-state-store", "data"),
             Input("buy-sell-state-payoff-format-store", "data"),
+            dash.Input(ThemeSwitchAIO.ids.switch("theme"), "value")
         ],
 
         State("previous-outputs-store", "data"),
@@ -178,9 +182,21 @@ def register_callbacks(app):
     
     def update_table(*args):
         # print(args)
-        selected_expiry, selected_datetime, minus_clicks, plus_clicks, buy_sell_state, position_details_dict, previous_outputs = args[:7]
+        
+        selected_expiry, selected_datetime, minus_clicks, plus_clicks, buy_sell_state, position_details_dict, previous_outputs, is_dark = args[:8]
+
+        table_class = "table-dark" if is_dark else "table-light"
+        fig_template = "plotly_dark" if is_dark else "plotly_white"
+        
         fig = go.Figure()
+        # fig.
         positions_rows = []
+
+        table_style = {
+            "backgroundColor": "#1e1e1e" if is_dark else "white",
+            "color": "white" if is_dark else "black",
+            "border": "1px solid #444" if is_dark else "1px solid #ddd",
+        }
 
         
         if previous_outputs is None:
@@ -210,6 +226,8 @@ def register_callbacks(app):
                 output_datetime_str,
                 positions_rows,
                 previous_outputs,
+                fig,
+                table_class
                 # buy_sell_state
 
             )
@@ -258,7 +276,8 @@ def register_callbacks(app):
                 previous_outputs["current_dt"],
                 previous_outputs,
                 positions_rows,
-                fig
+                fig,
+                table_class
                 # buy_sell_state
             )
 
@@ -276,8 +295,10 @@ def register_callbacks(app):
             # Conditional background for 'strike' column
             if item["strike"] == atm_strike:
                 row_style = {"textAlign": "center", "backgroundColor": "#ffeb3b", "fontWeight": "bold"}
+                row_style = table_style
             elif item["strike"] % 5 == 0:  # example: alternate styling
                 row_style = {"textAlign": "center","backgroundColor": "#f9f9f9"}
+                row_style = table_style
 
             cache_status = {
                 'ce_sell': (["selected"] if item["strike"] in buy_sell_state["ce"]["sell"] else []),
@@ -356,7 +377,7 @@ def register_callbacks(app):
         """
         
         if len(position_details_dict) != 0:
-            fig = create_payoff_fig(spot_price, position_details_dict)
+            fig = create_payoff_fig(spot_price, position_details_dict, fig_template)
             for key, position_data in position_details_dict.items():
                 print(position_data)
                 positions_rows.append(
@@ -381,7 +402,8 @@ def register_callbacks(app):
             previous_outputs["current_dt"],
             previous_outputs,
             positions_rows,
-            fig
+            fig,
+            table_class
             # buy_sell_state
         )
 

@@ -16,7 +16,7 @@ import plotly.graph_objects as go
 #     fig.update_layout(margin=dict(l=20, r=20, t=40, b=20))
 #     return fig
 
-def create_payoff_fig(spot_price, position_details_dict):
+def create_payoff_fig(spot_price, position_details_dict, fig_template = "plotly_white"):
     # Create payoff dict: keys=strikes, values=payoff
     payoff_dict = create_plot_dict_2(spot_price, position_details_dict)
     
@@ -59,7 +59,7 @@ def create_payoff_fig(spot_price, position_details_dict):
             lower_lim = max_abs
         fig.update_yaxes(range=[-lower_lim, upper_lim])
 
-    fig.update_layout(margin=dict(l=20, r=20, t=40, b=20))
+    fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), template=fig_template)
     return fig
 
 

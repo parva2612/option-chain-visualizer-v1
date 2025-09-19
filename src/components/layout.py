@@ -1,7 +1,8 @@
 import os
 import glob
 from dash import html, dcc
-
+import dash_bootstrap_components as dbc
+from dash_bootstrap_templates import ThemeSwitchAIO
 from src.config_loader import DATA_PATH
 
 def create_layout():
@@ -16,6 +17,8 @@ def create_layout():
         dcc.Store(id="buy-sell-state-store", storage_type="memory"),
         dcc.Store(id="buy-sell-state-payoff-format-store", storage_type="memory"),
 
+        dcc.Store(id="theme-store", data="light"),  # default theme
+
         html.Div(
             style={
                 "width": "98%",
@@ -26,6 +29,7 @@ def create_layout():
             },
             children=[
             html.H2("Option Chain Dashboard"),
+
             html.Div([    
                     html.Div([
                         html.Div([
@@ -55,7 +59,12 @@ def create_layout():
                         html.Div([
                             html.Button("⏪ -1 min", id="minus-1min-btn", n_clicks=0, style={"margin-right": "5px"}),
                             html.Button("+1 min ⏩", id="plus-1min-btn", n_clicks=0)
-                        ])
+                        ]),
+                        
+                        ThemeSwitchAIO(aio_id="theme", themes=[dbc.themes.BOOTSTRAP, dbc.themes.DARKLY]),
+                        html.H4("Dark Theme Toggle Test", className="text-center"),
+                        # dbc.Button("Click Me", color="primary"),
+
                     ], style={"display": "flex", "alignItems": "flex-start", "margin-bottom": "10px"}),
 
                     
